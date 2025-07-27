@@ -1,10 +1,20 @@
 import pygame
 import random
+import json
+import os
+
 
 pygame.init()
 
+
 WIDTH, HEIGHT = 800, 400
 FPS = 60
+
+score = 0
+high_score = 0
+show_new_high_score = False
+show_new_high_score_time = 0
+SCORE_RATE = 5
 
 # Colors
 GREEN = (34, 177, 76)
@@ -97,8 +107,8 @@ class Obstacle:
         elif type_ == 'lake':
             self.width = 100
             self.height = GROUND_HEIGHT + 40
-            #self.image = pygame.image.load("lake.png").convert_alpha()  # Load thorn image
-            #self.image = pygame.transform.scale(self.image, (self.width, self.height))
+            self.image = pygame.image.load("lake.png").convert_alpha()  # Load thorn image
+            self.image = pygame.transform.scale(self.image, (self.width, self.height))
             self.rect = pygame.Rect(WIDTH, HEIGHT - GROUND_HEIGHT - self.height + GROUND_HEIGHT, self.width, self.height)
         else:
             self.width = 40
@@ -149,7 +159,26 @@ def draw_lose_screen():
     screen.blit(retry_text, retry_text.get_rect(center=(WIDTH//2, HEIGHT//2 + 20)))
     pygame.display.update()
 
+def load_high_score(email):
+    if os.path.exists("scores.json"):
+        with open("scores.json", "r") as f:
+            scores = json.load(f)
+        return scores.get(email, 0)
+    return 0
+
+def save_high_score(email, score):
+    scores = {}
+    if os.path.exists("scores.json"):
+        with open("scores.json", "r") as f:
+            scores = json.load(f)
+    scores[email] = max(scores.get(email, 0), score)
+    with open("scores.json", "w") as f:
+        json.dump(scores, f)
+
+
 def main():
+    global score, high_score, show_new_high_score, show_new_high_score_time
+
     player = Player()
     obstacles = [generate_obstacle([])]
     lives = 3
@@ -163,9 +192,27 @@ def main():
 
     last_speed_increase = 0
 
+    name = input("Enter your name: ")
+    email = input("Enter your email: ")
+    high_score = load_high_score(email)
+
+    score = 0
+    show_new_high_score = False
+    show_new_high_score_time = 0
+
+
+
     while True:
         clock.tick(FPS)
         current_time = pygame.time.get_ticks()
+
+        if started and not lost:
+            score += SCORE_RATE * (1 / FPS)
+
+            if score > high_score:
+                high_score = score
+                show_new_high_score = True
+                show_new_high_score_time = current_time
 
         if started and not lost and current_time - last_speed_increase >= 5000:
             speed += 0.2
@@ -190,6 +237,7 @@ def main():
                     started = False
                     invincible = False
                     hit_timer = 0
+                    score = 0
 
         if not started:
             draw_start_screen()
@@ -238,6 +286,10 @@ def main():
                         invincible = True
                         hit_timer = current_time
                         if lives <= 0:
+                            save_high_score(email, int(score))
+                            lost = True
+
+
                             lost = True
                         else:
                             player.rect.x = 100
@@ -251,7 +303,9 @@ def main():
                     invincible = True
                     hit_timer = current_time
                     if lives <= 0:
+                        save_high_score(email, int(score))
                         lost = True
+
                     else:
                         player.rect.x = 100
                         player.rect.y = HEIGHT - GROUND_HEIGHT - PLAYER_HEIGHT
@@ -262,6 +316,17 @@ def main():
 
         lives_text = small_font.render(f"Lives: {lives}", True, WHITE)
         screen.blit(lives_text, (10, 10))
+
+        score_text = small_font.render(f"Score: {int(score)}", True, WHITE)
+        high_score_text = small_font.render(f"High Score: {int(high_score)}", True, WHITE)
+        screen.blit(score_text, (WIDTH - 160, 10))
+        screen.blit(high_score_text, (WIDTH - 160, 40))
+
+        if show_new_high_score and current_time - show_new_high_score_time <= 3000:
+            popup_text = font.render("New High Score!", True, (255, 215, 0))
+            screen.blit(popup_text, popup_text.get_rect(center=(WIDTH // 2, 30)))
+
+
 
         pygame.display.update()
 
