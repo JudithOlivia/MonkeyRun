@@ -121,6 +121,7 @@ class Obstacle:
         if hasattr(self, 'image'):
             surface.blit(self.image, self.rect)
         else:pygame.draw.rect(surface, (255, 0, 0), self.rect)
-        
+
+     
     
                 
